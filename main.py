@@ -117,11 +117,13 @@ def display_text(text, surface, position, size, color=(255, 255, 255)):
 
 def open_menu(a=0):
     global arena_size
+    global sel_mul
     on = True
     mouse = False
     arena = 0
     button1 = Button([585, 270], [750, 150], (0, 0, 0), 50)
-    button2 = Button([585, 570], [750, 150], (0, 0, 0), 50)
+    button2 = Button([585, 470], [750, 150], (0, 0, 0), 50)
+    button4 = Button([585, 670], [750, 150], (0, 0, 0), 50)
     button3 = Button([585, 870], [750, 150], (0, 0, 0), 50)
     increase = True
     while on:
@@ -147,6 +149,7 @@ def open_menu(a=0):
         button1.call(mouse)
         button2.call(mouse)
         button3.call(mouse)
+        button4.call(mouse)
         if button1.hover:
             button1.color = (255, 255, 255)
         else:
@@ -161,6 +164,10 @@ def open_menu(a=0):
             button3.color = (255, 255, 255)
         else:
             button3.color = player_colors[wave]
+        if button4.hover:
+            button4.color = (255, 255, 255)
+        else:
+            button4.color = player_colors[wave]
         if button1.pressed:
             buttonclick.play()
             on = False
@@ -173,22 +180,32 @@ def open_menu(a=0):
             buttonclick.play()
             reset()
             on = False
-        if not button2.pressed:
+        if (not button2.pressed) and (not button4.pressed):
             increase = True
 
         if button3.pressed:
             buttonclick.play()
             quit()
+        if button4.pressed and increase:
+            buttonclick.play()
+            if sel_mul <= int(max_round)//10:
+                sel_mul += 1
+            else:
+                sel_mul -= int(max_round)//10
+            increase = False
 
         #region draw...
 
         button1.draw()
         button2.draw()
         button3.draw()
+        button4.draw()
         display_text(f"Highest level: {int(max_round)}", menu, (ui.get_width() / 2 - 270, 100), 75)
         display_text("Start" if a==1 else "Reusme", menu, (845+30*a, 300), 75, player_colors[wave] if button1.hover else (255, 255, 255))
-        display_text("Restart" if a==0 else f"arena size: {arena_size}", menu, (830-75*a, 600), 75, player_colors[wave] if button2.hover else (255, 255, 255))
+        display_text("Restart" if a==0 else f"arena size: {arena_size}", menu, (830-75*a, 500), 75, player_colors[wave] if button2.hover else (255, 255, 255))
+        display_text(f"EXP Multiplier: [{sel_mul}/{int(max_round)//10+1}]", menu, (630, 700), 75, player_colors[wave] if button4.hover else (255, 255, 255))
         display_text("Quit", menu, (880, 900), 75, player_colors[wave] if button3.hover else (255, 255, 255))
+
         screen.blit(menu, (0, 0))
         pygame.display.update()
         clock.tick(20)
@@ -408,6 +425,7 @@ class Mouse:
 
 #region variables...
 max_round = player_data[0]
+lvl_multiplier = max(float(max_round) // 10, 1)
 shooting = False
 shot_speed = 2
 bullet_damage = 1
@@ -424,6 +442,7 @@ recoil_reduction = 0
 vawe = 0
 menuon = False
 player_colors = {0:(237, 37, 78), 1:(255, 166, 48), 2:(71, 160, 37), 3:(215, 73, 50)}
+sel_mul = 1
 
 #endregion
 
@@ -554,7 +573,7 @@ while True:
                         particles.append(Particle((enemy.position.copy()[0] - 50, enemy.position.copy()[1] - 50), r.randint(5, 10), look_at(enemy.position, player.position)+r.randint(-7, 7)/10, r.randint(10, 25), r.randint(30, 50)/100, pygame.transform.average_color(enemy.display)))
                     if enemy in enemies:
                         destroy_channel.play(destroy)
-                        points += 1 * enemy.value
+                        points += 1 * enemy.value * sel_mul
                         bullet.damage -= enemy.health
                         enemies.remove(enemy)
                         ui_update = 2
