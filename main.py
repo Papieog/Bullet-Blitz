@@ -1,28 +1,29 @@
 import pygame
+import asyncio
 import random as r
 from sys import exit
 import math
 from pygame.locals import *
 
 #region init...
+
 player_data_ = open("Player data.txt", "r+")
 player_data = player_data_.readlines()
-flags = FULLSCREEN | DOUBLEBUF | SRCALPHA
+flags = DOUBLEBUF | SRCALPHA
 title = "title"
 pygame.init()
 pygame.display.set_caption(title)
 clock = pygame.time.Clock()
 arena_size = 1
-screen = pygame.display.set_mode((1920, 1080), flags, 16)
+screen = pygame.display.set_mode((1280, 960), flags, 16)
 menu = pygame.Surface(screen.get_size())
 ui = pygame.Surface((screen.get_size()[0], screen.get_size()[1]), SRCALPHA)
-buttonclick = pygame.mixer.Sound("sfx/destroy.mp3")
+buttonclick = pygame.mixer.Sound("sfx/destroy.ogg")
 #endregion
 
 #region functinos...
 
 def reset():
-    pass
     global shooting
     global shot_speed
     global bullet_damage
@@ -114,8 +115,8 @@ def display_text(text, surface, position, size, color=(255, 255, 255)):
     font = pygame.font.SysFont("Arial", size)
     text_surface = font.render(text, True, color)
     surface.blit(text_surface, position)
-
-def open_menu(a=0):
+"""
+async def open_menu(a=0):
     global arena_size
     global sel_mul
     on = True
@@ -208,10 +209,11 @@ def open_menu(a=0):
 
         screen.blit(menu, (0, 0))
         pygame.display.update()
+        await asyncio.sleep(0)
         clock.tick(20)
 
         #endregion
-
+"""
 #endregion
 
 #region classes...
@@ -443,10 +445,10 @@ vawe = 0
 menuon = False
 player_colors = {0:(237, 37, 78), 1:(255, 166, 48), 2:(71, 160, 37), 3:(215, 73, 50)}
 sel_mul = 1
-
+cam_pos = [0,0]
 #endregion
 
-open_menu(1)
+#asyncio.run(open_menu(1))
 arena_factor = (arena_size-1)/arena_size
 render = pygame.Surface((int(screen.get_size()[0]*arena_size), int(screen.get_size()[1]*arena_size)))
 
@@ -469,23 +471,23 @@ last_shot = pygame.time.get_ticks()
 #endregion
 
 #region sounds...
-pygame.mixer.music.load(f"music/Music{arena_size}.wav")
+pygame.mixer.music.load(f"music/Music{arena_size}.ogg")
 pygame.mixer.music.set_volume(0.05)
 pygame.mixer.music.play(-1)
-shoot1 = pygame.mixer.Sound("sfx/shoot1.mp3")
-shoot2 = pygame.mixer.Sound("sfx/shoot2.mp3")
-shoot3 = pygame.mixer.Sound("sfx/shoot3.mp3")
+shoot1 = pygame.mixer.Sound("sfx/shoot1.ogg")
+shoot2 = pygame.mixer.Sound("sfx/shoot2.ogg")
+shoot3 = pygame.mixer.Sound("sfx/shoot3.ogg")
 hit = pygame.mixer.Sound("sfx/impactMining_000.ogg")
 hit.set_volume(0.7)
 destroy = pygame.mixer.Sound("sfx/impactMetal_003.ogg")
 destroy.set_volume(0.7)
 shield = pygame.mixer.Sound("sfx/forceField_003.ogg")
 shield.set_volume(0.2)
-bdamage = pygame.mixer.Sound("sfx/phaserUp5.mp3")
+bdamage = pygame.mixer.Sound("sfx/phaserUp5.ogg")
 bdamage.set_volume(0.7)
-frate = pygame.mixer.Sound("sfx/phaseJump3.mp3")
+frate = pygame.mixer.Sound("sfx/phaseJump3.ogg")
 frate.set_volume(0.7)
-recoilrez = pygame.mixer.Sound("sfx/lowDown.mp3")
+recoilrez = pygame.mixer.Sound("sfx/lowDown.ogg")
 shieldown = pygame.mixer.Sound("sfx/pepSound4.ogg")
 shieldown.set_volume(0.2)
 deaths = pygame.mixer.Sound("sfx/explosionCrunch_003.ogg")
@@ -503,244 +505,279 @@ ui_channel = pygame.mixer.Channel(5)
 #endregion
 
 #gameloop
-while True:
-
-    if menuon:
-        open_menu()
-        menuon = False
-
-    #region live variables...
-    if int(max_round) < level:
-        max_round = level
-        player_data_.seek(0, 0)
-        player_data_.write(str(level))
-    enemy_health_multiplier = vawe + 1
-    cam_pos = [int(-player.position[0]*arena_factor), int(-player.position[1]*arena_factor)]
-    exp_needed = int(level * 2.5 * arena_size)
-    exp = points - sub_exp
-    level_bar.value = exp / exp_needed*100
-    if exp >= exp_needed:
-        sub_exp += exp_needed
-        level += 1
-        level_points += 1
-        ui_update = 2
-
+async def loop():
+    #region globals...
+    global shooting
+    global shot_speed
+    global bullet_damage
+    global points
+    global wave
+    global dashing
+    global level
+    global sub_exp
+    global level_points
+    global dashed
+    global dead
+    global ui_update
+    global recoil_reduction
+    global vawe
+    global menuon
+    global player_colors
+    global enemies
+    global player
+    global cursor
+    global bullets
+    global particles
+    global level_bar
+    global shield
+    global max_round
+    global last_enemy_spawn
+    global last_enemy2_spawn
+    global last_enemy3_spawn
+    global last_shot
     #endregion
 
-    #region enemy spawn...
-    maxspeed = 0.75
-    enemy_speed = 0.01 + pygame.time.get_ticks() * 0.00001
-    if enemy_speed > maxspeed:
-        enemy_speed = maxspeed
+    while True:
 
-    if pygame.time.get_ticks() - last_enemy_spawn > 2000/(0.0001+pygame.time.get_ticks()*0.0001)+3000/arena_size:
-        enemies.append(Enemy([r.randint(0, render.get_width()), r.randint(0, render.get_height())], enemy_speed, 1*enemy_health_multiplier,  "sprites/enemy{}.png".format(wave*3+1)))
-        last_enemy_spawn = pygame.time.get_ticks()
+        if menuon:
+            #await open_menu()
+            menuon = False
 
-    if level >= 5 and pygame.time.get_ticks() - last_enemy2_spawn > 8000/arena_size:
-        enemies.append(Enemy([r.randint(0, 1920), r.randint(0, 1080)], enemy_speed/3, 5*enemy_health_multiplier, "sprites/enemy{}.png".format(wave*3+2)))
-        last_enemy2_spawn = pygame.time.get_ticks()
+        #region live variables...
+        if int(max_round) < level:
+            max_round = level
+            player_data_.seek(0, 0)
+            player_data_.write(str(level))
+        enemy_health_multiplier = vawe + 1
+        cam_pos = [int(-player.position[0]*arena_factor), int(-player.position[1]*arena_factor)]
+        exp_needed = int(level * 2.5 * arena_size)
+        exp = points - sub_exp
+        level_bar.value = exp / exp_needed*100
+        if exp >= exp_needed:
+            sub_exp += exp_needed
+            level += 1
+            level_points += 1
+            ui_update = 2
 
-    if level >= 10 and pygame.time.get_ticks() - last_enemy3_spawn > 25000/arena_size:
-        enemies.append(Enemy([r.randint(0, 1920), r.randint(0, 1080)], enemy_speed/5, 15*enemy_health_multiplier, "sprites/enemy{}.png".format(wave*3+3)))
-        last_enemy3_spawn = pygame.time.get_ticks()
+        #endregion
 
-    if level - 5*vawe >= 15:
-        vawe += 1
-        wave = vawe % 4
-        player.recolor("sprites/player{}.png".format(wave + 1))
+        #region enemy spawn...
+        maxspeed = 0.75
+        enemy_speed = 0.01 + pygame.time.get_ticks() * 0.00001
+        if enemy_speed > maxspeed:
+            enemy_speed = maxspeed
+
+        if pygame.time.get_ticks() - last_enemy_spawn > 2000/(0.0001+pygame.time.get_ticks()*0.0001)+3000/arena_size:
+            enemies.append(Enemy([r.randint(0, render.get_width()), r.randint(0, render.get_height())], enemy_speed, 1*enemy_health_multiplier,  "sprites/enemy{}.png".format(wave*3+1)))
+            last_enemy_spawn = pygame.time.get_ticks()
+
+        if level >= 5 and pygame.time.get_ticks() - last_enemy2_spawn > 8000/arena_size:
+            enemies.append(Enemy([r.randint(0, 1920), r.randint(0, 1080)], enemy_speed/3, 5*enemy_health_multiplier, "sprites/enemy{}.png".format(wave*3+2)))
+            last_enemy2_spawn = pygame.time.get_ticks()
+
+        if level >= 10 and pygame.time.get_ticks() - last_enemy3_spawn > 25000/arena_size:
+            enemies.append(Enemy([r.randint(0, 1920), r.randint(0, 1080)], enemy_speed/5, 15*enemy_health_multiplier, "sprites/enemy{}.png".format(wave*3+3)))
+            last_enemy3_spawn = pygame.time.get_ticks()
+
+        if level - 5*vawe >= 15:
+            vawe += 1
+            wave = vawe % 4
+            player.recolor("sprites/player{}.png".format(wave + 1))
+            for bullet in bullets:
+                bullet.recolor("sprites/bullet{}.png".format(wave + 1))
+
+        #endregion
+
+        #region enemy destroy...
         for bullet in bullets:
-            bullet.recolor("sprites/bullet{}.png".format(wave + 1))
-
-    #endregion
-
-    #region enemy destroy...
-    for bullet in bullets:
-        for enemy in list(enemies):
-            if distance(enemy.position, bullet.position) < enemy.display.get_width()/2 and enemy.collider:
-                if enemy.health > bullet.damage:
-                    hit_channel.play(hit)
-                    enemy.health -= bullet.damage
-                    enemy.velocity[0] -= direction(enemy.position, bullet.position)[0]*bullet.damage
-                    enemy.velocity[1] -= direction(enemy.position, bullet.position)[1]*bullet.damage
-                    if bullet in bullets:
-                        for i in range(10):
-                            particles.append(Particle((enemy.position.copy()[0] - 50, enemy.position.copy()[1] - 50), r.randint(5, 10), look_at(enemy.position, player.position) + r.randint(-7, 7) / 10, r.randint(10, 25), r.randint(10, 20) / 100, pygame.transform.average_color(enemy.display)))
-                        bullets.remove(bullet)
-
-                else:
-                    for i in range(20):
-                        particles.append(Particle((enemy.position.copy()[0] - 50, enemy.position.copy()[1] - 50), r.randint(5, 10), look_at(enemy.position, player.position)+r.randint(-7, 7)/10, r.randint(10, 25), r.randint(30, 50)/100, pygame.transform.average_color(enemy.display)))
-                    if enemy in enemies:
-                        destroy_channel.play(destroy)
-                        points += 1 * enemy.value * sel_mul
-                        bullet.damage -= enemy.health
-                        enemies.remove(enemy)
-                        ui_update = 2
-                        if bullet.damage <= 0:
+            for enemy in list(enemies):
+                if distance(enemy.position, bullet.position) < enemy.display.get_width()/2 and enemy.collider:
+                    if enemy.health > bullet.damage:
+                        hit_channel.play(hit)
+                        enemy.health -= bullet.damage
+                        enemy.velocity[0] -= direction(enemy.position, bullet.position)[0]*bullet.damage
+                        enemy.velocity[1] -= direction(enemy.position, bullet.position)[1]*bullet.damage
+                        if bullet in bullets:
+                            for i in range(10):
+                                particles.append(Particle((enemy.position.copy()[0] - 50, enemy.position.copy()[1] - 50), r.randint(5, 10), look_at(enemy.position, player.position) + r.randint(-7, 7) / 10, r.randint(10, 25), r.randint(10, 20) / 100, pygame.transform.average_color(enemy.display)))
                             bullets.remove(bullet)
-                        bullet.update()
 
-    #endregion
+                    else:
+                        for i in range(20):
+                            particles.append(Particle((enemy.position.copy()[0] - 50, enemy.position.copy()[1] - 50), r.randint(5, 10), look_at(enemy.position, player.position)+r.randint(-7, 7)/10, r.randint(10, 25), r.randint(30, 50)/100, pygame.transform.average_color(enemy.display)))
+                        if enemy in enemies:
+                            destroy_channel.play(destroy)
+                            points += 1 * enemy.value * sel_mul
+                            bullet.damage -= enemy.health
+                            enemies.remove(enemy)
+                            ui_update = 2
+                            if bullet.damage <= 0:
+                                bullets.remove(bullet)
+                            bullet.update()
 
-    #region player death...
+        #endregion
 
-    for enemy in enemies:
-        if enemy.collider and distance(enemy.position, player.position) < enemy.display.get_width()/2-5:
-            if player.shield <= 0:
-                phit_channel.play(deaths)
-                dead = True
-            else:
-                enemies.remove(enemy)
-                phit_channel.play(shieldown)
-                player.shield -= 1
-                ui_update = 2
-    if dead:
-        reset()
+        #region player death...
 
-    #endregion
+        for enemy in enemies:
+            if enemy.collider and distance(enemy.position, player.position) < enemy.display.get_width()/2-5:
+                if player.shield <= 0:
+                    phit_channel.play(deaths)
+                    dead = True
+                else:
+                    enemies.remove(enemy)
+                    phit_channel.play(shieldown)
+                    player.shield -= 1
+                    ui_update = 2
+        if dead:
+            reset()
 
-    #region class function call...
+        #endregion
 
-    level_bar.call()
+        #region class function call...
 
-    for enemy in enemies:
-        enemy.call()
+        level_bar.call()
 
-    for particle in particles:
-        particle.call()
-        if particle.diein < pygame.time.get_ticks():
-            particles.remove(particle)
+        for enemy in enemies:
+            enemy.call()
 
-    for bullet in bullets:
-        bullet.call()
+        for particle in particles:
+            particle.call()
+            if particle.diein < pygame.time.get_ticks():
+                particles.remove(particle)
 
-    for bullet in bullets:
-        bullet.call()
-
-    player.call()
-
-    cursor.call()
-    #endregion
-
-    #region collision...
-    for enemy in enemies:
-        for i in enemies:
-            if enemy is not i and distance(enemy.position, i.position) < enemy.display.get_width()/2 + i.display.get_width()/2 and enemy.collider and i.collider:
-                enemy.velocity[0] -= direction(enemy.position, i.position)[0]
-                enemy.velocity[1] -= direction(enemy.position, i.position)[1]
-
-    #endregion
-
-    #region events...
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            exit()
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            menuon = True
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            shooting = True
-        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            shooting = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LSHIFT:
-                dashing = True
-                dashed = True
-                ui_update = 2
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_LSHIFT:
-                dashing = False
-        if event.type == pygame.KEYDOWN and level_points > 0:
-            if event.key == pygame.K_z:
-                upgrade_channel.play(frate)
-                level_points -= 1
-                shot_speed += 0.5
-                ui_update = 2
-            if event.key == pygame.K_x:
-                upgrade_channel.play(bdamage)
-                level_points -= 1
-                bullet_damage += 1
-                ui_update = 2
-            if event.key == pygame.K_c:
-                upgrade_channel.play(recoilrez)
-                level_points -= 1
-                recoil_reduction += 1
-                ui_update = 2
-            if event.key == pygame.K_SPACE:
-                upgrade_channel.play(shield)
-                level_points -= 1
-                player.shield += 1
-                ui_update = 2
-            if event.key == pygame.K_p:
-                points += exp_needed
-                ui_update = 2
-
-    if dashing:
-        particles.append(Particle((player.position.copy()[0] - 50 + r.randint(-15,15), player.position.copy()[1] - 50+ r.randint(-15,15)), r.randint(-5,5)/10, r.randint(-5,5)/10, r.randint(3,6)/3, r.randint(1,3)/3, player_colors[wave]))
-
-    if shooting and pygame.time.get_ticks() - last_shot > 1000 / shot_speed and not dashing:
-        bullet_updated = False
-        match = r.randint(1,3)
-        if match == 1:
-            shoot_channel1.play(shoot1)
-        elif match == 2:
-            shoot_channel2.play(shoot2)
-        elif match == 3:
-            shoot_channel3.play(shoot3)
         for bullet in bullets:
-            if bullet.diein < pygame.time.get_ticks():
-                bullet.reset(player.position.copy(), player.get_rotation(), bullet_damage, shot_speed)
-                bullet_updated = True
+            bullet.call()
+
+        for bullet in bullets:
+            bullet.call()
+
+        player.call()
+
+        cursor.call()
+        #endregion
+
+        #region collision...
+        for enemy in enemies:
+            for i in enemies:
+                if enemy is not i and distance(enemy.position, i.position) < enemy.display.get_width()/2 + i.display.get_width()/2 and enemy.collider and i.collider:
+                    enemy.velocity[0] -= direction(enemy.position, i.position)[0]
+                    enemy.velocity[1] -= direction(enemy.position, i.position)[1]
+
+        #endregion
+
+        #region events...
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                menuon = True
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                shooting = True
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                shooting = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LSHIFT:
+                    dashing = True
+                    dashed = True
+                    ui_update = 2
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_LSHIFT:
+                    dashing = False
+            if event.type == pygame.KEYDOWN and level_points > 0:
+                if event.key == pygame.K_z:
+                    upgrade_channel.play(frate)
+                    level_points -= 1
+                    shot_speed += 0.5
+                    ui_update = 2
+                if event.key == pygame.K_x:
+                    upgrade_channel.play(bdamage)
+                    level_points -= 1
+                    bullet_damage += 1
+                    ui_update = 2
+                if event.key == pygame.K_c:
+                    upgrade_channel.play(recoilrez)
+                    level_points -= 1
+                    recoil_reduction += 1
+                    ui_update = 2
+                if event.key == pygame.K_SPACE:
+                    upgrade_channel.play(shield)
+                    level_points -= 1
+                    player.shield += 1
+                    ui_update = 2
+                if event.key == pygame.K_p:
+                    points += exp_needed
+                    ui_update = 2
+
+        if dashing:
+            particles.append(Particle((player.position.copy()[0] - 50 + r.randint(-15,15), player.position.copy()[1] - 50+ r.randint(-15,15)), r.randint(-5,5)/10, r.randint(-5,5)/10, r.randint(3,6)/3, r.randint(1,3)/3, player_colors[wave]))
+
+        if shooting and pygame.time.get_ticks() - last_shot > 1000 / shot_speed and not dashing:
+            bullet_updated = False
+            match = r.randint(1,3)
+            if match == 1:
+                shoot_channel1.play(shoot1)
+            elif match == 2:
+                shoot_channel2.play(shoot2)
+            elif match == 3:
+                shoot_channel3.play(shoot3)
+            for bullet in bullets:
+                if bullet.diein < pygame.time.get_ticks():
+                    bullet.reset(player.position.copy(), player.get_rotation(), bullet_damage, shot_speed)
+                    bullet_updated = True
+                    player.shot(bullet_damage, recoil_reduction)
+                    break
+            if not bullet_updated:
+                bullets.append(Projectile(player.position.copy(), player.get_rotation(), "sprites/bullet{}.png".format(wave+1), bullet_damage, shot_speed))
                 player.shot(bullet_damage, recoil_reduction)
-                break
-        if not bullet_updated:
-            bullets.append(Projectile(player.position.copy(), player.get_rotation(), "sprites/bullet{}.png".format(wave+1), bullet_damage, shot_speed))
-            player.shot(bullet_damage, recoil_reduction)
-        last_shot = pygame.time.get_ticks()
+            last_shot = pygame.time.get_ticks()
 
-    #endregion
+        #endregion
 
-    #region camera...
+        #region camera...
 
-    if wave == 0:
-        render.fill((70, 83, 98))
-    elif wave == 1:
-        render.fill((97, 28, 53))
-    elif wave == 2:
-        render.fill((36, 16, 35))
-    else:
-        render.fill((0, 0, 0))
+        if wave == 0:
+            render.fill((70, 83, 98))
+        elif wave == 1:
+            render.fill((97, 28, 53))
+        elif wave == 2:
+            render.fill((36, 16, 35))
+        else:
+            render.fill((0, 0, 0))
 
-    if player.shield > 0:
-        pygame.draw.circle(render, (player_colors[wave][0], player_colors[wave][1], player_colors[wave][2], 1), player.position, 75+5*player.shield, 5*player.shield)
-    render.blit(player.display, (player.position[0] - int(player.display.get_width() / 2), player.position[1] - int(player.display.get_height() / 2)))
-    for enemy in enemies:
-        render.blit(enemy.display, (enemy.position[0] - int(enemy.display.get_width() / 2), enemy.position[1] - int(enemy.display.get_height() / 2)))
-    for bullet in bullets:
-        render.blit(bullet.display, (bullet.position[0] - int(bullet.display.get_width() / 2), bullet.position[1] - int(bullet.display.get_height() / 2)))
-    for particle in particles:
-        pygame.draw.rect(render, particle.color, (particle.position[0], particle.position[1], particle.size, particle.size))
-    screen.blit(render, cam_pos)
-    #region ui...
-    if ui_update > 0:
-        ui.fill((0, 0, 0, 0))
-        ui_update -= 1
-        if not dashed:
-            display_text("hold shift to dash", ui, (ui.get_width() / 2 - 200, 300), 50)
-        if level_points == 1:
-            display_text("1 upgrade avaliable!", ui, (ui.get_width() / 2 - 250, 100), 50)
-        elif level_points > 1:
-            display_text(f"{level_points} upgrades avaliable!!", ui, (ui.get_width() / 2 - 250, 100), 50)
-            display_text("press Z to increase fire rate", ui, (ui.get_width() / 2 - 190, 170), 30)
-            display_text("press X to increase damage", ui, (ui.get_width() / 2 - 190, 220), 30)
-            display_text("press C to lower gun recoil", ui, (ui.get_width() / 2 - 190, 270), 30)
-            display_text("press SPACE to add a shield layer", ui, (ui.get_width() / 2 - 190, 320), 30)
-        pygame.draw.rect(ui, (50, 50, 50, 100), (level_bar.position[0], level_bar.position[1], level_bar.lenght, 30), 5, 15)
-        pygame.draw.rect(ui, player_colors[wave], (level_bar.position[0] + 5, level_bar.position[1] + 5, level_bar.progress, 20), 0, 10)
-        display_text(f"{level}", ui, (ui.get_width() / 2, ui.get_height() - 200), 50)
-    screen.blit(ui, (0, 0))
-    #endregion
-    pygame.display.update()
-    clock.tick(60)
+        if player.shield > 0:
+            pygame.draw.circle(render, (player_colors[wave][0], player_colors[wave][1], player_colors[wave][2], 1), player.position, 75+5*player.shield, 5*player.shield)
+        render.blit(player.display, (player.position[0] - int(player.display.get_width() / 2), player.position[1] - int(player.display.get_height() / 2)))
+        for enemy in enemies:
+            render.blit(enemy.display, (enemy.position[0] - int(enemy.display.get_width() / 2), enemy.position[1] - int(enemy.display.get_height() / 2)))
+        for bullet in bullets:
+            render.blit(bullet.display, (bullet.position[0] - int(bullet.display.get_width() / 2), bullet.position[1] - int(bullet.display.get_height() / 2)))
+        for particle in particles:
+            pygame.draw.rect(render, particle.color, (particle.position[0], particle.position[1], particle.size, particle.size))
+        screen.blit(render, cam_pos)
+        #region ui...
+        if ui_update > 0:
+            ui.fill((0, 0, 0, 0))
+            ui_update -= 1
+            if not dashed:
+                display_text("hold shift to dash", ui, (ui.get_width() / 2 - 200, 300), 50)
+            if level_points == 1:
+                display_text("1 upgrade avaliable!", ui, (ui.get_width() / 2 - 250, 100), 50)
+            elif level_points > 1:
+                display_text(f"{level_points} upgrades avaliable!!", ui, (ui.get_width() / 2 - 250, 100), 50)
+                display_text("press Z to increase fire rate", ui, (ui.get_width() / 2 - 190, 170), 30)
+                display_text("press X to increase damage", ui, (ui.get_width() / 2 - 190, 220), 30)
+                display_text("press C to lower gun recoil", ui, (ui.get_width() / 2 - 190, 270), 30)
+                display_text("press SPACE to add a shield layer", ui, (ui.get_width() / 2 - 190, 320), 30)
+            pygame.draw.rect(ui, (50, 50, 50, 100), (level_bar.position[0], level_bar.position[1], level_bar.lenght, 30), 5, 15)
+            pygame.draw.rect(ui, player_colors[wave], (level_bar.position[0] + 5, level_bar.position[1] + 5, level_bar.progress, 20), 0, 10)
+            display_text(f"{level}", ui, (ui.get_width() / 2, ui.get_height() - 200), 50)
+        screen.blit(ui, (0, 0))
+        #endregion
+        pygame.display.update()
+        clock.tick(60)
+        await asyncio.sleep(0)
+
+asyncio.run(loop())
 
     #endregion
