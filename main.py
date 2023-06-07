@@ -409,7 +409,7 @@ class Controller(Rigidbody):
         return self.angle
 
     def shot(self, damage, reduction):
-        red = reduction + 1
+        red = 2 * reduction + 1
         direc = direction(self.position, cursor.position)
         self.velocity[0] = self.velocity[0] - direc[0] * max(damage/red, 0)
         self.velocity[1] = self.velocity[1] - direc[1] * max(damage/red, 0)
